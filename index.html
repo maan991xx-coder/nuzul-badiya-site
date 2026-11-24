@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body>
+<title>نُزل بدية الخضراء</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+[hidden]{display:none!important}
+@font-face{font-family:"Thmanyah Serif Text";src:url("fonts/thmanyah-serif-text-Regular.woff2") format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Thmanyah Serif Text";src:url("fonts/thmanyah-serif-text-Medium.woff2") format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:"Thmanyah Serif Text";src:url("fonts/thmanyah-serif-text-Bold.woff2") format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Thmanyah Serif Text";src:url("fonts/thmanyah-serif-text-Black.woff2") format("woff2");font-weight:900;font-display:swap}
+/* Layout: a scroll-scrubbed drone film (dive → pan) pinned full-screen, then an interactive explorer
+   (site → building plan → room card) that zooms in and out, then rooms, contact and booking. Single dark cinematic look. */
+:root{
+  --night:#0d0f14;        /* page ground */
+  --ink:#1d1a16;          /* text on paper */
+  --paper:#fbf4e6;        /* cards */
+  --paper-2:#f1e4c9;
+  --palm:#2f6b4f;         /* brand green */
+  --palm-deep:#1f4a37;
+  --saffron:#d98a2b;      /* accent */
+  --line:#e2d3b3;
+  --muted:#6f6455;
+  --on-dark:#fffaf0;
+  --glass:rgba(12,14,22,.55);
+  --font-display:"Thmanyah Serif Text","Times New Roman",Tahoma,serif;
+  --font-body:"Thmanyah Serif Text",Tahoma,"Segoe UI",serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--night);color:var(--on-dark);font-family:var(--font-body);font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;line-height:1.25;margin:0}
+p{margin:0}
+button{font-family:inherit}
+:focus-visible{outline:3px solid var(--saffron);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1180px;margin-inline:auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.num{font-variant-numeric:tabular-nums}
+img{display:block}
+
+/* image slot (real photo or labelled placeholder until photos arrive) */
+.slot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ph{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:rgba(255,250,240,.75);font-size:.9rem;
+  background:radial-gradient(120% 90% at 70% 20%,#5a4a36 0%,#2b2a2a 45%,#14161d 100%)}
+.ph span{border:1px dashed rgba(255,255,255,.35);padding:8px 14px;border-radius:10px;background:rgba(0,0,0,.25)}
+
+/* ---------- header ---------- */
+.top{position:fixed;inset:0 0 auto 0;z-index:40;padding-top:env(safe-area-inset-top,0px);background:linear-gradient(180deg,rgba(0,0,0,.55),rgba(0,0,0,0))}
+.top .wrap{display:flex;align-items:center;gap:20px;height:68px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--on-dark)}
+.brand b{font-family:var(--font-display);font-size:1.15rem}
+.brand small{display:block;font-size:.72rem;opacity:.8;margin-top:-4px}
+.nav{display:flex;gap:22px;margin-inline-start:auto}
+.nav a{color:var(--on-dark);text-decoration:none;font-weight:500;font-size:.95rem;opacity:.85}
+.nav a:hover{opacity:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;border-radius:999px;font-weight:600;font-size:1rem;padding:12px 22px;text-decoration:none;transition:transform .15s,background .2s}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--saffron);color:#1d1206}
+.btn-primary:hover{background:#e89a3a}
+.btn-ghost{background:rgba(255,255,255,.12);color:var(--on-dark);border:1px solid rgba(255,255,255,.3);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.btn-ghost:hover{background:rgba(255,255,255,.22)}
+.btn-green{background:var(--palm);color:#fff}
+.btn-green:hover{background:var(--palm-deep)}
+.btn-sm{padding:9px 16px;font-size:.92rem}
+
+/* ---------- FILM (scroll-scrubbed) ---------- */
+.film{position:relative;height:520vh}
+.film-stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#000}
+.film-stage canvas,.film-stage .poster{position:absolute;inset:0;width:100%;height:100%}
+.film-stage .poster{object-fit:cover}
+.loading{position:absolute;inset:auto 0 70px 0;text-align:center;font-size:.8rem;opacity:.7;z-index:4}
+.shot{overflow:hidden;will-change:transform,opacity}
+.shot .inner{position:absolute;inset:0;will-change:transform}
+.shot.pan .inner{width:200%;inset:0 auto 0 0}
+.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 45%,rgba(0,0,0,0) 55%,rgba(0,0,0,.55) 100%),linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,0) 25%,rgba(0,0,0,0) 65%,rgba(0,0,0,.6))}
+.caption{position:absolute;inset:auto 0 12vh 0;z-index:3}
+.cap{position:absolute;inset:auto 16px 0 16px;opacity:0;transform:translateY(20px)}
+.cap .k{font-size:.85rem;letter-spacing:.5px;color:#ffd79a;font-weight:600}
+.cap h1{font-size:clamp(2.6rem,8vw,6.2rem);font-weight:700;text-shadow:0 6px 40px rgba(0,0,0,.5)}
+.cap h2{font-size:clamp(1.9rem,4.6vw,3.4rem);text-shadow:0 4px 30px rgba(0,0,0,.6)}
+.cap p{max-width:34em;margin-top:10px;font-size:clamp(1rem,1.6vw,1.2rem);text-shadow:0 2px 16px rgba(0,0,0,.7)}
+.cap .row{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+.cap.first{opacity:1;transform:none}
+.film-progress{position:absolute;inset:auto auto 28px 50%;transform:translateX(-50%);z-index:4;width:min(260px,60vw);height:3px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden}
+.film-progress i{display:block;height:100%;width:0;background:#ffd79a}
+.hint{position:absolute;inset:auto 0 50px 0;text-align:center;font-size:.85rem;opacity:.85;z-index:4}
+
+/* ---------- EXPLORER ---------- */
+.explorer{position:relative;height:100vh;height:100svh;min-height:560px;overflow:hidden;background:#000}
+.view{position:absolute;inset:0;overflow:hidden}
+.scene{position:absolute;left:50%;top:50%;transform-origin:0 0}
+.scene .slot,.scene .ph{position:absolute;inset:0}
+.hot{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;border:0;background:none;color:var(--on-dark);padding:0}
+.hot .tag{background:rgba(251,244,230,.96);color:var(--ink);border-radius:14px;padding:8px 14px;font-weight:600;font-size:.92rem;white-space:nowrap;box-shadow:0 12px 30px -10px rgba(0,0,0,.6);display:flex;align-items:center;gap:8px;transition:transform .2s}
+.hot .tag b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--palm);color:#fff;font-family:var(--font-display);font-size:.95rem}
+.hot .tag small{color:var(--muted);font-weight:500}
+.hot .stem{width:2px;height:34px;background:linear-gradient(var(--paper),rgba(251,244,230,0))}
+.hot .dot{width:16px;height:16px;border-radius:50%;background:var(--saffron);box-shadow:0 0 0 0 rgba(217,138,43,.7);animation:ping 2s infinite}
+.hot:hover .tag,.hot:focus-visible .tag{transform:translateY(-4px)}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(217,138,43,.7)}70%{box-shadow:0 0 0 16px rgba(217,138,43,0)}100%{box-shadow:0 0 0 0 rgba(217,138,43,0)}}
+.room-hot{position:absolute;border:2px solid rgba(255,215,154,.0);border-radius:10px;background:rgba(255,215,154,.0);cursor:pointer;transition:background .2s,border-color .2s;display:grid;place-items:center;padding:0}
+.room-hot span{background:rgba(13,15,20,.78);color:var(--on-dark);font-size:.82rem;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.room-hot:hover,.room-hot:focus-visible,.room-hot.sel{background:rgba(255,215,154,.22);border-color:#ffd79a}
+.room-hot.taken span{opacity:.55}
+.x-ui{position:absolute;inset:0;pointer-events:none;z-index:5}
+.x-ui > *{pointer-events:auto}
+.x-head{position:absolute;inset:calc(84px + env(safe-area-inset-top,0px)) 0 auto 0}
+.x-head .wrap{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.crumbs{display:flex;gap:6px;align-items:center;background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:6px 8px;font-size:.88rem}
+.crumbs button{background:none;border:0;color:var(--on-dark);opacity:.75;cursor:pointer;padding:4px 10px;border-radius:999px;font-size:.88rem}
+.crumbs button.on{opacity:1;background:rgba(255,255,255,.14);font-weight:600}
+.crumbs i{opacity:.4;font-style:normal}
+.x-title{position:absolute;inset:auto 0 calc(28px + env(safe-area-inset-bottom,0px)) 0}
+.x-title .wrap{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.x-title h2{font-size:clamp(1.6rem,3.4vw,2.5rem);text-shadow:0 4px 24px rgba(0,0,0,.7)}
+.x-title p{opacity:.88;max-width:32em;text-shadow:0 2px 12px rgba(0,0,0,.8)}
+.legend{display:flex;gap:12px;font-size:.8rem;background:var(--glass);padding:8px 14px;border-radius:999px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:6px;vertical-align:middle}
+
+/* room card */
+.card{position:absolute;z-index:8;top:calc(136px + env(safe-area-inset-top,0px));bottom:16px;inset-inline-start:max(16px,env(safe-area-inset-right,0px));width:min(430px,calc(100% - 32px));background:var(--paper);color:var(--ink);border-radius:24px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 40px 80px -30px rgba(0,0,0,.8);transform:translateX(115%);opacity:0;transition:transform .55s cubic-bezier(.2,.8,.2,1),opacity .4s}
+.card.open{transform:none;opacity:1}
+.gal{position:relative;aspect-ratio:16/10;flex:none;background:#222}
+.gal .g-img{position:absolute;inset:0;opacity:0;transition:opacity .5s}
+.gal .g-img.on{opacity:1}
+.gal .g-lbl{position:absolute;inset:auto auto 12px 12px;background:rgba(13,15,20,.75);color:#fff;font-size:.8rem;padding:4px 10px;border-radius:999px;z-index:2}
+.gal .g-close{position:absolute;top:12px;right:12px;z-index:2;width:38px;height:38px;border-radius:50%;border:0;background:rgba(251,244,230,.95);cursor:pointer;font-size:1.1rem;color:var(--ink)}
+.thumbs{display:flex;gap:8px;padding:10px 14px 0;overflow-x:auto;flex:none}
+.thumbs button{flex:none;border:2px solid transparent;border-radius:12px;padding:0;cursor:pointer;background:var(--paper-2);font-size:.78rem;color:var(--ink);overflow:hidden;width:96px;height:62px;position:relative}
+.thumbs button.on{border-color:var(--palm)}
+.thumbs button span{position:absolute;inset:auto 0 0 0;background:rgba(13,15,20,.6);color:#fff;font-size:.7rem;padding:1px 0}
+.c-body{padding:16px 20px;overflow-y:auto;flex:1}
+.c-body h3{font-size:1.5rem}
+.c-sub{color:var(--muted);font-size:.9rem}
+.feat{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin:14px 0 0;padding:0;list-style:none;font-size:.9rem}
+.feat li::before{content:"✓";color:var(--palm);font-weight:700;margin-inline-end:6px}
+.c-foot{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:14px 20px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px dashed var(--line);flex:none}
+.price b{font-family:var(--font-display);font-size:1.8rem;color:var(--palm-deep);line-height:1}
+.price small{display:block;color:var(--muted);font-size:.78rem}
+
+/* ---------- info sections ---------- */
+.sec{padding-block:100px}
+.sec-head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px;margin-bottom:28px}
+.sec-head h2{font-size:clamp(2rem,4vw,3rem)}
+.sec-head p{opacity:.85;max-width:30em}
+.types{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.type{display:grid!important;grid-template-columns:1.2fr 1fr}
+.type .m{aspect-ratio:auto;min-height:320px}
+.type>*{min-width:0}
+.gallery{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}
+.gallery figure{margin:0;position:relative;aspect-ratio:4/3;border-radius:14px;overflow:hidden;max-width:100%}
+.gallery figcaption{position:absolute;inset:auto 0 0 0;background:linear-gradient(transparent,rgba(0,0,0,.7));font-size:.78rem;padding:14px 10px 6px}
+.type{background:var(--paper);color:var(--ink);border-radius:20px;overflow:hidden;display:flex;flex-direction:column}
+.type .m{position:relative;aspect-ratio:4/3;max-width:100%}
+.type .b{padding:16px 18px;display:flex;flex-direction:column;gap:6px;flex:1}
+.type h3{font-size:1.2rem}
+.type .b > div{margin-top:auto;display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px dashed var(--line)}
+.type .b b{font-family:var(--font-display);color:var(--palm-deep);font-size:1.3rem}
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.pcard{background:var(--paper);color:var(--ink);border-radius:22px;padding:26px}
+.pcard h3{font-size:1.4rem;margin-bottom:8px}
+.c-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px dashed var(--line)}
+.c-row:last-of-type{border-bottom:0}
+.c-row span{color:var(--muted);font-size:.86rem}
+.c-row b{direction:ltr;unicode-bidi:isolate}
+.copy{border:1px solid var(--line);background:#fff;border-radius:999px;font-size:.8rem;padding:4px 12px;cursor:pointer;color:var(--ink)}
+.note{font-size:.8rem;color:var(--muted);margin-top:10px}
+footer{background:#07080c;color:#cfc8ba;font-size:.88rem}
+footer .wrap{padding-block:26px calc(26px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}
+
+/* ---------- booking drawer ---------- */
+.overlay{position:fixed;inset:0;z-index:60;background:rgba(8,10,18,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;justify-content:flex-start;opacity:0;transition:opacity .3s}
+.overlay.open{opacity:1}
+.drawer{width:min(540px,100%);height:100%;background:var(--paper);color:var(--ink);display:flex;flex-direction:column;transform:translateX(104%);transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.overlay.open .drawer{transform:none}
+.d-head{padding:calc(18px + env(safe-area-inset-top,0px)) 22px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.d-head h2{font-size:1.3rem}
+.xbtn{margin-inline-start:auto;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:1.1rem;color:var(--ink)}
+.steps{display:flex;gap:6px;padding:14px 22px 0;margin:0}
+.steps li{list-style:none;flex:1;font-size:.74rem;color:var(--muted);font-weight:600}
+.steps li::before{content:"";display:block;height:4px;border-radius:2px;background:var(--line);margin-bottom:6px}
+.steps li.on{color:var(--palm-deep)}
+.steps li.on::before{background:var(--palm)}
+.d-body{flex:1;overflow-y:auto;padding:20px 22px}
+.d-foot{padding:14px 22px calc(14px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;background:#f7eedb}
+.d-foot .tot{margin-inline-end:auto}
+.d-foot .tot small{display:block;color:var(--muted);font-size:.75rem}
+.d-foot .tot b{font-family:var(--font-display);font-size:1.3rem;color:var(--palm-deep)}
+.btn-back{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.step{display:none}.step.on{display:block}
+.step h3{font-size:1.1rem;margin:4px 0 12px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:2px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:8px 14px;min-width:0}
+.field + .field{margin-top:10px}
+.row2 .field + .field{margin-top:0}
+.field label{font-size:.75rem;color:var(--muted);font-weight:600}
+.field input,.field select{border:0;background:transparent;font:inherit;color:var(--ink);padding:2px 0;width:100%;min-width:0}
+.field input:focus,.field select:focus{outline:none}
+.field:focus-within{box-shadow:0 0 0 2px var(--saffron)}
+.nights{margin-top:10px;font-size:.9rem;color:var(--palm-deep);font-weight:600}
+.counter{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px dashed var(--line)}
+.counter small{display:block;color:var(--muted);font-size:.8rem}
+.ctl{display:flex;align-items:center;gap:12px}
+.ctl button{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:1.2rem;cursor:pointer;color:var(--ink)}
+.ctl button:disabled{opacity:.35;cursor:not-allowed}
+.ctl output{min-width:1.5em;text-align:center;font-weight:700}
+.picked{display:flex;gap:12px;align-items:center;background:#fff;border:1.5px solid var(--palm);border-radius:16px;padding:12px;margin-bottom:14px}
+.picked .t{width:84px;height:60px;border-radius:10px;overflow:hidden;position:relative;flex:none}
+.picked small{display:block;color:var(--muted)}
+.opt{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;margin-bottom:8px}
+.opt.sel{border-color:var(--palm);box-shadow:0 0 0 3px rgba(47,107,79,.15)}
+.opt.dis{opacity:.45;cursor:not-allowed}
+.opt small{display:block;color:var(--muted);font-size:.8rem}
+.opt b.p{font-family:var(--font-display);color:var(--palm-deep)}
+.extra{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border:1.5px solid var(--line);border-radius:14px;background:#fff;margin-bottom:8px;cursor:pointer}
+.extra input{width:20px;height:20px;accent-color:var(--palm);margin-top:3px;flex:none}
+.extra div{flex:1}.extra small{display:block;color:var(--muted);font-size:.8rem}
+.extra em{font-style:normal;font-weight:700;color:var(--palm-deep);white-space:nowrap}
+.err{color:#a3361b;font-size:.85rem;margin-top:8px;min-height:1.2em}
+.sum{background:#fff;border:1px solid var(--line);border-radius:16px;padding:6px 16px}
+.sum div{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:.93rem}
+.sum div:last-child{border-bottom:0}
+.sum div span{color:var(--muted)}
+.sum .grand{font-weight:700}
+.sum .grand b{color:var(--palm-deep)}
+.done{text-align:center}
+.done .ok{width:70px;height:70px;border-radius:50%;background:var(--palm);color:#fff;display:grid;place-items:center;margin:6px auto 12px}
+.done .ref{display:inline-block;margin-top:10px;font-family:var(--font-display);font-size:1.35rem;background:#fff;border:1px dashed var(--palm);padding:6px 18px;border-radius:12px;direction:ltr}
+.msg{margin-top:14px;text-align:start;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:.86rem;white-space:pre-wrap;user-select:all}
+.demo{font-size:.8rem;color:var(--muted);margin-top:12px}
+
+@media (max-width:900px){
+  .nav{display:none}
+  .type{grid-template-columns:minmax(0,1fr)!important}
+  .type>*{min-width:0}
+  .gallery{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .contact-grid{grid-template-columns:1fr}
+  .card{top:auto;bottom:0;inset-inline:0;width:100%;max-height:82%;border-radius:24px 24px 0 0;transform:translateY(105%)}
+  .card.open{transform:none}
+}
+@media (max-width:520px){
+  .row2,.feat{grid-template-columns:1fr}
+  .legend{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div dir="rtl" lang="ar">
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#film"><svg width="36" height="36" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="#2f6b4f"/><path d="M8 30c5-4 10-5 12-5s8 1 12 5" fill="none" stroke="#f1e4c9" stroke-width="2"/><path d="M20 25V12" stroke="#f1e4c9" stroke-width="2"/><path d="M20 12c-3-3-7-3-9-1 3 0 6 0 9 1zm0 0c3-3 7-3 9-1-3 0-6 0-9 1z" fill="#f1e4c9"/></svg><span><b>نُزل بدية الخضراء</b><small>الواصل · بدية</small></span></a>
+    <nav class="nav" aria-label="أقسام الصفحة"><a href="#film">الجولة</a><a href="#explore">اختر وحدتك</a><a href="#types">الأسعار</a><a href="#contact">التواصل</a></nav>
+    <button class="btn btn-primary btn-sm" data-book>احجز الآن</button>
+  </div>
+</header>
+
+<!-- ============ FILM ============ -->
+<section class="film" id="film">
+  <div class="film-stage" id="stage">
+    <img class="poster" id="poster" src="frames/dive/001.jpg" alt="منظر جوي لنُزل بدية الخضراء">
+    <canvas id="cvDive"></canvas>
+    <canvas id="cvPan" style="opacity:0"></canvas>
+    <div class="vignette"></div>
+
+    <div class="caption"><div class="wrap" style="position:relative;height:0">
+      <div class="cap first" data-cap="0"><span class="k">الواصل، بدية · <bdi>Bidiyah Green Homes</bdi></span><h1>نُزل بدية الخضراء</h1><p>مرّر للأسفل، وخلّنا ننزل بك من السماء إلى باب النُزل.</p><p class="num" style="margin-top:8px;font-size:.95rem;opacity:.9">★ 4.4 على خرائط جوجل · 116 مراجعة</p></div>
+      <div class="cap" data-cap="1"><span class="k">كمباوند بسور واحد</span><h2>فلل بمسابح خاصة وشاليهات</h2><p>بين العشب وأشجار الزيتون، على شارع بدية، ورمال الشرقية على بُعد دقائق.</p></div>
+      <div class="cap" data-cap="2"><span class="k">جولة في الفيلا</span><h2>ساحتك الخاصة</h2><p>مسبح وجاكوزي، جلسة بين أشجار الزيتون، وإضاءة دافئة مع الغروب.</p></div>
+      <div class="cap" data-cap="3"><span class="k">الخطوة التالية</span><h2>ادخل الفيلا واختر غرفتك</h2><div class="row"><a class="btn btn-primary" href="#explore">ابدأ الاختيار</a></div></div>
+    </div></div>
+    <div class="hint" id="hint">↓ مرّر للأسفل</div>
+    <div class="loading" id="loading"></div>
+    <div class="film-progress"><i id="fp"></i></div>
+  </div>
+</section>
+
+<!-- ============ EXPLORER ============ -->
+<section class="explorer" id="explore" aria-label="اختيار المبنى والغرفة">
+  <div class="view" id="vSite"><div class="scene" id="siteScene"></div></div>
+  <div class="view" id="vPlan" style="opacity:0;visibility:hidden"><div class="scene" id="planScene"></div></div>
+
+  <div class="x-ui">
+    <div class="x-head"><div class="wrap"><nav class="crumbs" id="crumbs" aria-label="مكانك"></nav></div></div>
+    <div class="x-title"><div class="wrap"><div><h2 id="xT">اختر المبنى</h2><p id="xP">اضغط على الفيلا لتدخل إليها وتشاهد المخطط بدون سقف.</p></div>
+      <div class="legend" id="legend" hidden><span><i style="background:#ffd79a"></i>متاحة</span><span><i style="background:#6b6b6b"></i>محجوزة في تواريخك</span></div></div></div>
+  </div>
+
+  <aside class="card" id="card" aria-live="polite">
+    <div class="gal" id="gal"><button class="g-close" id="cClose" aria-label="إغلاق البطاقة">✕</button></div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="c-body">
+      <h3 id="cName"></h3>
+      <div class="c-sub" id="cSub"></div>
+      <p id="cDesc" style="margin-top:10px;color:#4a4238;font-size:.95rem"></p>
+      <ul class="feat" id="cFeat"></ul>
+    </div>
+    <div class="c-foot"><div class="price"><small>لليلة تقريبًا</small><b class="num" id="cPrice"></b></div><button class="btn btn-green" id="cBook">احجز هذه الوحدة</button></div>
+  </aside>
+</section>
+
+<!-- ============ TYPES & PRICES ============ -->
+<section class="sec" id="types"><div class="wrap">
+  <div class="sec-head"><h2>الفيلا والسعر</h2><p>السعر لليلة الواحدة وتقريبي. الإفطار والواي فاي والموقف مجانية.</p></div>
+  <div class="types" id="typeGrid"></div>
+  <div class="gallery">
+    <figure><img class="slot" src="img/g-court.jpg" alt="الساحة والجاكوزي" loading="lazy"><figcaption>الساحة والجاكوزي</figcaption></figure>
+    <figure><img class="slot" src="img/g-dusk.jpg" alt="الفيلا مع الغروب" loading="lazy"><figcaption>الفيلا مع الغروب</figcaption></figure>
+    <figure><img class="slot" src="img/g-entrance.jpg" alt="المدخل" loading="lazy"><figcaption>المدخل</figcaption></figure>
+    <figure><img class="slot" src="img/aerial.jpg" alt="الكمباوند من فوق" loading="lazy"><figcaption>الكمباوند من فوق</figcaption></figure>
+  </div>
+  <p class="note" style="color:rgba(255,250,240,.6)">صور تصوّرية للمكان.</p>
+</div></section>
+
+<section class="sec" id="contact" style="padding-top:0"><div class="wrap">
+  <div class="sec-head"><h2>الموقع والتواصل</h2></div>
+  <div class="contact-grid">
+    <div class="pcard"><h3>الواصل، ولاية بدية</h3><p style="color:#4a4238">محافظة شمال الشرقية، سلطنة عُمان. على بُعد دقائق من مدخل رمال الشرقية، وحوالي 45 كم من وادي بني خالد.</p>
+      <div class="c-row"><div><span>تسجيل الدخول</span><br><b class="num">14:00</b></div><div><span>المغادرة</span><br><b class="num">12:00</b></div></div>
+      <div style="margin-top:14px"><a class="btn btn-green btn-sm" href="https://maps.app.goo.gl/WxczW1rxHkoGsJ5h9" target="_blank" rel="noopener">افتح الموقع في خرائط جوجل</a></div></div>
+    <div class="pcard"><h3>تواصل معنا</h3>
+      <div class="c-row"><div><span>الهاتف والحجوزات</span><br><b class="num">+968 9000 0000</b></div><button class="copy" data-copy="+968 9000 0000">نسخ</button></div>
+      <div class="c-row"><div><span>واتساب</span><br><b class="num">+968 9100 0000</b></div><button class="copy" data-copy="+968 9100 0000">نسخ</button></div>
+      <div class="c-row"><div><span>البريد</span><br><b>info@badiya-lodge.om</b></div><button class="copy" data-copy="info@badiya-lodge.om">نسخ</button></div>
+      <p class="note">بيانات التواصل افتراضية للعرض.</p></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap"><span>© 2026 نُزل بدية الخضراء · الواصل، بدية</span><span>صفحة تجريبية، الأسعار وبيانات التواصل افتراضية</span></div></footer>
+
+<!-- ============ BOOKING ============ -->
+<div class="overlay" id="overlay" hidden>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <div class="d-head"><h2 id="dTitle">احجز إقامتك</h2><button class="xbtn" id="dClose" aria-label="إغلاق">✕</button></div>
+    <ol class="steps" id="stepsBar"><li class="on">التواريخ والوحدة</li><li>الإضافات</li><li>بياناتك</li><li>التأكيد</li></ol>
+    <div class="d-body" id="dBody">
+      <div class="step on" data-step="0">
+        <div id="pickedBox"></div>
+        <div class="row2">
+          <div class="field"><label for="bIn">تاريخ الوصول</label><input type="date" id="bIn"></div>
+          <div class="field"><label for="bOut">تاريخ المغادرة</label><input type="date" id="bOut"></div>
+        </div>
+        <div class="nights" id="nightsTxt"></div>
+        <div class="counter"><div>البالغون<small>13 سنة فأكثر</small></div><div class="ctl"><button type="button" data-c="adults" data-d="-1" aria-label="إنقاص البالغين">−</button><output id="cAdults" class="num">2</output><button type="button" data-c="adults" data-d="1" aria-label="زيادة البالغين">+</button></div></div>
+        <div class="counter"><div>الأطفال<small>من 2 إلى 12 سنة</small></div><div class="ctl"><button type="button" data-c="kids" data-d="-1" aria-label="إنقاص الأطفال">−</button><output id="cKids" class="num">0</output><button type="button" data-c="kids" data-d="1" aria-label="زيادة الأطفال">+</button></div></div>
+        <h3 style="margin-top:18px">الوحدة</h3>
+        <div id="roomOpts"></div>
+        <div class="err" id="err0"></div>
+      </div>
+      <div class="step" data-step="1"><h3>أضف لمسة لإقامتك</h3><div id="extrasList"></div></div>
+      <div class="step" data-step="2">
+        <h3>بيانات الضيف</h3>
+        <div class="field"><label for="gName">الاسم الكامل</label><input id="gName" autocomplete="name" placeholder="مثال: سالم بن خلفان"></div>
+        <div class="field"><label for="gPhone">رقم الهاتف</label><input id="gPhone" inputmode="tel" autocomplete="tel" placeholder="+968 9XXX XXXX" dir="ltr" style="text-align:right"></div>
+        <div class="field"><label for="gArrive">وقت الوصول المتوقع</label><select id="gArrive"><option>14:00 – 16:00</option><option>16:00 – 18:00</option><option selected>18:00 – 20:00</option><option>بعد 20:00</option></select></div>
+        <div class="err" id="err2"></div>
+      </div>
+      <div class="step" data-step="3"><div id="summaryBox"></div></div>
+    </div>
+    <div class="d-foot">
+      <div class="tot"><small id="totLbl">الإجمالي التقديري</small><b class="num" id="totVal">—</b></div>
+      <button class="btn btn-back" id="bBack" type="button">رجوع</button>
+      <button class="btn btn-green" id="bNext" type="button">التالي</button>
+    </div>
+  </aside>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+(function(){
+"use strict";
+/* =====================================================================
+   CONTENT — swap image paths here when the real/AI photos are ready.
+   Every image slot falls back to a labelled placeholder when src is null.
+   ===================================================================== */
+var IMG={
+  site:{src:"img/aerial.jpg",label:"المنظر الجوي للكمباوند",w:2400,h:1350}
+};
+/* drone videos as frame sequences, scrubbed by scroll */
+var SEQS={dive:{path:"frames/dive/",count:100},pan:{path:"frames/pan/",count:100}};
+
+var TYPES={
+  villa:{name:"فيلا بمسبح خاص",price:75,size:200,beds:"غرفة رئيسية كينج + غرفة توأم",max:6,desc:"فيلا بساحة مسوّرة فيها مسبح خاص وجاكوزي وجلسة خارجية، خصوصية تامة للعائلة.",
+       feat:["مسبح خاص","جاكوزي","ساحة مسوّرة","مجلس واسع","غرفتا نوم","مطبخ","إفطار مجاني","تكييف"]}
+};
+/* views shown in each card gallery */
+var VIEWS={
+  villa:[{src:"img/villa-1.jpg",label:"المسبح الخاص والجاكوزي"},{src:"img/villa-2.jpg",label:"غرفة النوم الرئيسية"},{src:"img/villa-3.jpg",label:"المجلس"},{src:"img/villa-4.jpg",label:"المسبح الداخلي"}]
+};
+/* buildings on the site image (x,y in % of the image) and their plans with unit boxes (% of plan image).
+   A unit box may set v = which gallery view opens first. */
+var BUILDINGS=[
+  {id:"v1",n:1,name:"الفيلا",sub:"بمسبح خاص",x:58.5,y:52,villa:true,
+   plan:{src:"img/plan-villa.jpg",label:"مخطط الفيلا بدون سقف",w:2000,h:1125},rooms:null}
+];
+/* spaces inside a villa plan; every space opens the same villa card at the matching view */
+var VILLA_SPACES=[{k:"المسبح والجاكوزي",v:0,x:22,y:40,w:20,h:22},{k:"المجلس",v:2,x:45,y:22,w:17,h:17},{k:"الغرفة الرئيسية",v:1,x:75,y:30,w:13,h:16},{k:"غرفة التوأم",v:1,x:66,y:44,w:12,h:13},{k:"المسبح الداخلي",v:3,x:44,y:64,w:18,h:18}];
+BUILDINGS.forEach(function(b){if(b.villa){var u="V"+b.id.slice(1);b.rooms=VILLA_SPACES.map(function(s){return {no:u,t:"villa",label:s.k,v:s.v,x:s.x,y:s.y,w:s.w,h:s.h}})}});
+var EXTRAS=[
+  {id:"bed",name:"سرير إضافي",note:"لكل ليلة",price:5,per:"once"},
+  {id:"dune",name:"جولة رمال الشرقية بالدفع الرباعي مع الغروب",note:"للسيارة حتى 4 أشخاص",price:25,per:"once"},
+  {id:"bbq",name:"عشاء شواء تحت النجوم",note:"لكل شخص",price:7,per:"pp"}
+];
+var VAT=.05;
+
+/* ===================== helpers ===================== */
+function $(s,r){return (r||document).querySelector(s)}
+function $$(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))}
+function slot(o){return o&&o.src?'<img class="slot" src="'+o.src+'" alt="'+(o.label||"")+'" loading="lazy" decoding="async">':'<div class="ph"><span>'+(o?o.label:"صورة")+'</span></div>'}
+function omr(v){return v.toFixed(3)+" ر.ع"}
+function iso(d){var m=d.getMonth()+1,dd=d.getDate();return d.getFullYear()+"-"+(m<10?"0":"")+m+"-"+(dd<10?"0":"")+dd}
+function parse(s){if(!s)return null;var p=s.split("-");return new Date(+p[0],+p[1]-1,+p[2])}
+var DAYS=["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"],MONTHS=["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+function nice(d){return DAYS[d.getDay()]+" "+d.getDate()+" "+MONTHS[d.getMonth()]}
+function unitName(r){return (r.t==="villa"?"فيلا ":"شاليه ")+r.no.slice(1)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+
+
+/* ===================== booking state ===================== */
+var today=new Date();today.setHours(0,0,0,0);
+var S={inD:new Date(+today+7*864e5),outD:new Date(+today+9*864e5),adults:2,kids:0,room:null,extras:{},step:0,ref:null};
+function nights(){return Math.max(1,Math.round((S.outD-S.inD)/864e5))}
+function guests(){return S.adults+S.kids}
+function allRooms(){var a=[],seen={};BUILDINGS.forEach(function(b){b.rooms.forEach(function(r){if(seen[r.no])return;seen[r.no]=1;a.push({b:b,r:r})})});return a}
+function findRoom(no){var a=allRooms();for(var i=0;i<a.length;i++)if(a[i].r.no===no)return a[i];return null}
+/* deterministic "booked" flag per date + room so the plan feels live */
+function taken(no){var h=0,s=iso(S.inD)+no;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%1009;return h%5===0}
+
+/* ===================== FILM ===================== */
+var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+var hasG=!!(window.gsap&&window.ScrollTrigger);
+var caps=$$(".cap");
+function showCap(i){caps.forEach(function(c,k){var on=k===i;c.style.transition="opacity .6s, transform .6s";c.style.opacity=on?1:0;c.style.transform=on?"none":"translateY(20px)"})}
+var curCap=0;
+
+/* frame sequences */
+function Seq(cfg,canvas){this.c=canvas;this.x=canvas.getContext("2d");this.n=cfg.count;this.imgs=new Array(cfg.count);this.path=cfg.path;this.loaded=0;this.last=-1}
+Seq.prototype.load=function(done){var self=this,next=0,active=0;
+  function pump(){while(active<6&&next<self.n){(function(i){active++;var im=new Image();im.decoding="async";
+    im.onload=im.onerror=function(){active--;self.loaded++;if(im.naturalWidth)self.imgs[i]=im;onProg();if(i===0)self.draw(0,true);pump();if(self.loaded===self.n&&done)done()};
+    im.src=self.path+String(i+1).padStart(3,"0")+".jpg"})(next++)}}
+  pump()};
+Seq.prototype.draw=function(p,force){var i=Math.round(Math.max(0,Math.min(1,p))*(this.n-1));if(i===this.last&&!force)return;
+  var k=i;while(k>=0&&!this.imgs[k])k--;if(k<0)return;var im=this.imgs[k];this.last=(k===i)?i:-1;
+  var c=this.c,w=c.clientWidth,h=c.clientHeight,d=Math.min(2,devicePixelRatio||1);if(c.width!==Math.round(w*d)||c.height!==Math.round(h*d)){c.width=Math.round(w*d);c.height=Math.round(h*d)}
+  var s=Math.max(c.width/im.naturalWidth,c.height/im.naturalHeight),iw=im.naturalWidth*s,ih=im.naturalHeight*s;this.x.drawImage(im,(c.width-iw)/2,(c.height-ih)/2,iw,ih);
+  if(this===dive)$("#poster").style.opacity=0};
+var dive=new Seq(SEQS.dive,$("#cvDive")),pan=new Seq(SEQS.pan,$("#cvPan"));
+function onProg(){var t=dive.loaded+pan.loaded,all=dive.n+pan.n;$("#loading").textContent=t<all?"جارٍ تحميل الجولة "+Math.round(t/all*100)+"%":""}
+dive.load(function(){pan.load()});
+var lastP=0;
+addEventListener("resize",function(){dive.last=pan.last=-1;filmUpdate(lastP)});
+
+function filmUpdate(p){
+  lastP=p;
+  $("#fp").style.width=(p*100)+"%";
+  $("#hint").style.opacity=p<.03?1:0;
+  dive.draw(p/.5);
+  var f=Math.max(0,Math.min(1,(p-.47)/.06));
+  $("#cvPan").style.opacity=f;
+  if(f>0)pan.draw((p-.5)/.45);
+  var ci=p<.2?0:p<.5?1:p<.88?2:3;
+  if(ci!==curCap){curCap=ci;showCap(ci)}
+}
+if(hasG&&!reduce){
+  gsap.registerPlugin(ScrollTrigger);
+  ScrollTrigger.create({trigger:"#film",start:"top top",end:"bottom bottom",scrub:true,onUpdate:function(s){filmUpdate(s.progress)}});
+}else{
+  var film=$("#film");
+  addEventListener("scroll",function(){var r=film.getBoundingClientRect(),t=Math.max(0,Math.min(1,-r.top/(film.offsetHeight-innerHeight)));filmUpdate(t)},{passive:true});
+}
+filmUpdate(0);
+
+/* ===================== EXPLORER ===================== */
+var siteScene=$("#siteScene"),planScene=$("#planScene"),vSite=$("#vSite"),vPlan=$("#vPlan");
+var X={level:"site",b:null,room:null,anim:false};
+
+/* size a scene to "cover" the view, keeping hotspot % aligned to the image */
+function cover(scene,img,view,focusX){
+  var vw=view.clientWidth,vh=view.clientHeight,s=Math.max(vw/img.w,vh/img.h),w=img.w*s,h=img.h*s;
+  scene.style.width=w+"px";scene.style.height=h+"px";
+  var off=0;if(w>vw&&focusX!=null){off=Math.max(-(w-vw)/2,Math.min((w-vw)/2,(50-focusX)/100*w))}
+  scene.dataset.base=JSON.stringify({x:-w/2+off,y:-h/2,w:w,h:h});
+  scene.style.transform="translate("+(-w/2+off)+"px,"+(-h/2)+"px)";
+}
+function buildSite(){
+  siteScene.innerHTML=slot(IMG.site);
+  BUILDINGS.forEach(function(b){
+    var h=document.createElement("button");h.className="hot";h.style.left=b.x+"%";h.style.top=b.y+"%";
+    h.setAttribute("aria-label",b.name+": "+b.sub);
+    h.innerHTML='<span class="tag"><b>'+b.n+'</b>'+b.name+' <small>'+b.sub+'</small></span><span class="stem"></span><span class="dot"></span>';
+    h.addEventListener("click",function(){enterBuilding(b)});
+    siteScene.appendChild(h);
+  });
+  var mx=BUILDINGS.reduce(function(s,b){return s+b.x},0)/BUILDINGS.length;
+  cover(siteScene,IMG.site,vSite,mx);
+}
+function buildPlan(b){
+  planScene.innerHTML=slot(b.plan);
+  b.rooms.forEach(function(r){
+    var t=TYPES[r.t],busy=taken(r.no);
+    var el=document.createElement("button");el.className="room-hot"+(busy?" taken":"");
+    el.style.cssText="left:"+r.x+"%;top:"+r.y+"%;width:"+r.w+"%;height:"+r.h+"%";
+    el.setAttribute("aria-label",(r.label||t.name+" "+r.no)+(busy?" محجوزة":""));
+    el.innerHTML='<span>'+(r.label||(t.name+' '+r.no.slice(1)))+'</span>';
+    el.addEventListener("click",function(){openCard(b,r,el)});
+    planScene.appendChild(el);
+  });
+  cover(planScene,b.plan,vPlan,50);
+}
+function crumbs(){
+  var c=$("#crumbs"),h='<button data-go="site" class="'+(X.level==="site"?"on":"")+'">الموقع كامل</button>';
+  if(X.b)h+='<i>‹</i><button data-go="plan" class="'+(X.level==="plan"&&!X.room?"on":"")+'">'+X.b.name+'</button>';
+  if(X.room)h+='<i>‹</i><button class="on" data-go="room">'+(X.room.label||unitName(X.room))+'</button>';
+  c.innerHTML=h;
+  $$("button",c).forEach(function(b){b.addEventListener("click",function(){var g=b.dataset.go;if(g==="site")backToSite();else if(g==="plan")closeCard()})});
+  $("#legend").hidden=X.level!=="plan";
+  if(X.level==="site"){$("#xT").textContent="اختر المبنى";$("#xP").textContent="اضغط على الفيلا لتدخل إليها وتشاهد المخطط بدون سقف."}
+  else{$("#xT").textContent=X.b.name+" · "+X.b.sub;$("#xP").textContent=(X.b.villa?"الفيلا بدون سقف. اضغط على أي مساحة لتشاهد صورها وسعر الفيلا.":"الشاليهات بدون أسقف. اضغط على أي شاليه لتشاهد صوره وسعره.")}
+}
+function enterBuilding(b){
+  if(X.anim)return;X.anim=true;X.b=b;
+  var base=JSON.parse(siteScene.dataset.base),vw=vSite.clientWidth,vh=vSite.clientHeight,k=3.2;
+  var px=base.w*b.x/100,py=base.h*b.y/100;
+  var tx=vw/2-vw/2-px*k, ty=vh/2-vh/2-py*k; // relative to the scene's centred origin
+  buildPlan(b);
+  if(hasG&&!reduce){
+    gsap.timeline({onComplete:function(){X.anim=false;X.level="plan";crumbs()}})
+      .to(siteScene,{x:tx,y:ty,scale:k,duration:1.4,ease:"power3.inOut",onStart:function(){gsap.set(siteScene,{x:base.x,y:base.y,scale:1,transformOrigin:"0 0"})}})
+      .to(vSite,{opacity:0,duration:.5},"-=.45")
+      .fromTo(vPlan,{autoAlpha:0,scale:1.25},{autoAlpha:1,scale:1,duration:.9,ease:"power2.out"},"-=.55");
+  }else{vSite.style.opacity=0;vPlan.style.visibility="visible";vPlan.style.opacity=1;X.anim=false;X.level="plan";crumbs()}
+}
+function backToSite(){
+  if(X.anim||X.level==="site")return;
+  closeCard(true);X.anim=true;
+  var base=JSON.parse(siteScene.dataset.base);
+  if(hasG&&!reduce){
+    gsap.timeline({onComplete:function(){X.anim=false;X.level="site";X.b=null;crumbs()}})
+      .to(vPlan,{autoAlpha:0,scale:1.2,duration:.6,ease:"power2.in"})
+      .to(vSite,{opacity:1,duration:.4},"-=.3")
+      .to(siteScene,{x:base.x,y:base.y,scale:1,duration:1.3,ease:"power3.inOut"},"-=.4");
+  }else{vPlan.style.visibility="hidden";vPlan.style.opacity=0;vSite.style.opacity=1;X.anim=false;X.level="site";X.b=null;crumbs()}
+}
+
+/* room card */
+var card=$("#card");
+function openCard(b,r,el){
+  X.room=r;$$(".room-hot").forEach(function(x){x.classList.toggle("sel",x===el)});
+  var t=TYPES[r.t],v=VIEWS[r.t],busy=taken(r.no);
+  var g=$("#gal");$$(".g-img,.g-lbl",g).forEach(function(n){n.remove()});
+  var v0=r.v||0;v.forEach(function(o,i){var d=document.createElement("div");d.className="g-img"+(i===v0?" on":"");d.innerHTML=slot(o);g.appendChild(d)});
+  var lbl=document.createElement("span");lbl.className="g-lbl";lbl.textContent=v[v0].label;g.appendChild(lbl);
+  var th=$("#thumbs");th.innerHTML="";
+  v.forEach(function(o,i){var bt=document.createElement("button");bt.className=i===v0?"on":"";bt.setAttribute("aria-label",o.label);
+    bt.innerHTML=(o.src?'<img src="'+o.src+'" alt="" style="width:100%;height:100%;object-fit:cover">':'')+'<span>'+o.label+'</span>';
+    bt.addEventListener("click",function(){$$(".g-img",g).forEach(function(n,k){n.classList.toggle("on",k===i)});$$("button",th).forEach(function(n,k){n.classList.toggle("on",k===i)});lbl.textContent=o.label});
+    th.appendChild(bt)});
+  $("#cName").textContent=unitName(r);
+  $("#cSub").textContent=b.name+" · "+t.size+" م² · "+t.beds+" · حتى "+t.max+" ضيوف"+(busy?" · محجوزة في تواريخك":"");
+  $("#cDesc").textContent=t.desc;
+  $("#cFeat").innerHTML=t.feat.map(function(f){return"<li>"+f+"</li>"}).join("");
+  $("#cPrice").textContent=t.price+" ر.ع";
+  $("#cBook").textContent=busy?"اختر تواريخ أخرى":"احجز هذه الوحدة";
+  $("#cBook").onclick=function(){openB(r.no)};
+  card.classList.add("open");crumbs();
+}
+function closeCard(silent){card.classList.remove("open");X.room=null;$$(".room-hot").forEach(function(x){x.classList.remove("sel")});if(!silent)crumbs()}
+$("#cClose").addEventListener("click",function(){closeCard()});
+document.addEventListener("keydown",function(e){if(e.key!=="Escape"||!$("#overlay").hidden)return;if(X.room)closeCard();else if(X.level==="plan")backToSite()});
+addEventListener("resize",function(){buildSite();if(X.b){buildPlan(X.b);if(X.level==="plan"&&hasG){gsap.set(siteScene,{opacity:1})}}});
+buildSite();crumbs();
+
+/* ===================== type cards ===================== */
+var tg=$("#typeGrid");
+Object.keys(TYPES).forEach(function(k){var t=TYPES[k];
+  var el=document.createElement("article");el.className="type";
+  el.innerHTML='<div class="m">'+slot(VIEWS[k][0])+'</div><div class="b"><h3>'+t.name+'</h3><span style="color:#6f6455;font-size:.88rem">'+t.size+' م² · '+t.beds+' · حتى '+t.max+'</span><div><b class="num">'+t.price+' ر.ع</b><a class="btn btn-green btn-sm" href="#explore">اختر وحدة</a></div></div>';
+  tg.appendChild(el)});
+
+/* ===================== booking drawer ===================== */
+var bIn=$("#bIn"),bOut=$("#bOut");bIn.min=iso(today);
+function syncD(){bIn.value=iso(S.inD);bOut.value=iso(S.outD);bOut.min=iso(new Date(+S.inD+864e5))}
+bIn.addEventListener("change",function(){var d=parse(bIn.value);if(!d)return;S.inD=d<today?today:d;if(S.outD<=S.inD)S.outD=new Date(+S.inD+864e5);syncD();refresh()});
+bOut.addEventListener("change",function(){var d=parse(bOut.value);if(!d)return;S.outD=d<=S.inD?new Date(+S.inD+864e5):d;syncD();refresh()});
+syncD();
+function exCost(x,t){var n=nights(),g=guests();if(x.id==="bf"&&t==="dlx")return x.price*Math.max(0,g-2)*n;if(x.per==="pn")return x.price*g*n;if(x.per==="pp")return x.price*g;return x.price}
+function totals(){var f=S.room?findRoom(S.room):null,t=f?f.r.t:null,n=nights(),room=f?TYPES[t].price*n:0,ex=0;
+  EXTRAS.forEach(function(x){if(S.extras[x.id])ex+=exCost(x,t)});var sub=room+ex;return{room:room,ex:ex,vat:sub*VAT,total:sub*(1+VAT),n:n}}
+function renderOpts(){
+  var box=$("#roomOpts");box.innerHTML="";
+  var f=S.room?findRoom(S.room):null;
+  $("#pickedBox").innerHTML=f?'<div class="picked"><div class="t">'+slot(VIEWS[f.r.t][0])+'</div><div><b>'+unitName(f.r)+'</b><small>'+f.b.name+'</small></div></div>':"";
+  allRooms().forEach(function(o){var r=o.r,t=TYPES[r.t],busy=taken(r.no),fits=guests()<=t.max,dis=busy||!fits;
+    if(dis&&S.room===r.no)S.room=null;
+    var el=document.createElement("div");el.className="opt"+(S.room===r.no?" sel":"")+(dis?" dis":"");el.setAttribute("role","radio");el.setAttribute("aria-checked",S.room===r.no);el.tabIndex=dis?-1:0;
+    el.innerHTML='<div><b>'+unitName(r)+'</b><small>'+o.b.name+(busy?" · محجوزة":!fits?" · لا تتسع لـ "+guests():"")+'</small></div><b class="p num">'+(t.price*nights())+' ر.ع</b>';
+    if(!dis){var pick=function(){S.room=r.no;refresh()};el.addEventListener("click",pick);el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();pick()}})}
+    box.appendChild(el)});
+}
+function renderExtras(){var box=$("#extrasList"),f=findRoom(S.room),t=f?f.r.t:null;box.innerHTML="";
+  EXTRAS.forEach(function(x){var c=exCost(x,t),l=document.createElement("label");l.className="extra";
+    l.innerHTML='<input type="checkbox" id="ex_'+x.id+'"'+(S.extras[x.id]?" checked":"")+'><div><b>'+x.name+'</b><small>'+x.note+(x.id==="bf"&&t==="dlx"?" · مشمول لشخصين":"")+'</small></div><em class="num">'+(c?"+"+omr(c):"مشمول")+'</em>';
+    l.querySelector("input").addEventListener("change",function(e){S.extras[x.id]=e.target.checked;refresh()});box.appendChild(l)})}
+function renderSum(){var f=findRoom(S.room),t=TYPES[f.r.t],T=totals(),box=$("#summaryBox");
+  var exl=EXTRAS.filter(function(x){return S.extras[x.id]}).map(function(x){return x.name}).join("، ")||"لا يوجد";
+  if(S.ref){var msg="مرحبًا، أرغب بتأكيد حجز في نُزل بدية الخضراء\nرقم الطلب: "+S.ref+"\nالوحدة: "+unitName(f.r)+"\nالوصول: "+nice(S.inD)+"\nالمغادرة: "+nice(S.outD)+"\nالضيوف: "+S.adults+" بالغ، "+S.kids+" طفل\nالإضافات: "+exl+"\nالإجمالي التقديري: "+omr(T.total)+"\nالاسم: "+$("#gName").value.trim();
+    box.innerHTML='<div class="done"><div class="ok"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5L19 7"/></svg></div><h3 style="font-size:1.45rem">تم استلام طلب الحجز</h3><p style="color:#4a4238;margin-top:6px">سنتواصل معك على <b dir="ltr">'+esc($("#gPhone").value.trim())+'</b> للتأكيد.</p><div class="ref">'+S.ref+'</div><div class="msg" id="waMsg">'+esc(msg)+'</div><div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px"><button class="btn btn-back" id="copyMsg" type="button">نسخ رسالة الحجز</button><a class="btn btn-green" target="_blank" rel="noopener" href="https://wa.me/96891000000?text='+encodeURIComponent(msg)+'">إرسال عبر واتساب</a></div><p class="demo">صفحة تجريبية: لم يُرسل حجز فعلي، ورقم واتساب افتراضي.</p></div>';
+    $("#copyMsg").addEventListener("click",function(){copyText(msg,this)});return}
+  box.innerHTML='<h3>راجع حجزك</h3><div class="sum"><div><span>الوحدة</span><b>'+unitName(f.r)+'</b></div><div><span>الوصول</span><b>'+nice(S.inD)+'</b></div><div><span>المغادرة</span><b>'+nice(S.outD)+'</b></div><div><span>الضيوف</span><b class="num">'+S.adults+' بالغ · '+S.kids+' طفل</b></div><div><span>الإقامة ('+T.n+' × '+t.price+')</span><b class="num">'+omr(T.room)+'</b></div><div><span>الإضافات</span><b class="num">'+omr(T.ex)+'</b></div><div><span>ضريبة القيمة المضافة 5%</span><b class="num">'+omr(T.vat)+'</b></div><div class="grand"><span>الإجمالي التقديري</span><b class="num">'+omr(T.total)+'</b></div></div><p class="demo">الدفع عند الوصول · إلغاء مجاني حتى 48 ساعة قبل الوصول · الأسعار تقريبية.</p>'}
+function refresh(){var n=nights();
+  $("#nightsTxt").textContent=n+(n===1?" ليلة":n===2?" ليلتان":" ليالٍ")+" · من "+nice(S.inD)+" إلى "+nice(S.outD);
+  $("#cAdults").textContent=S.adults;$("#cKids").textContent=S.kids;
+  $$(".ctl button").forEach(function(b){var c=b.dataset.c,d=+b.dataset.d;b.disabled=(c==="adults"&&((d<0&&S.adults<=1)||(d>0&&S.adults>=6)))||(c==="kids"&&((d<0&&S.kids<=0)||(d>0&&S.kids>=4)))});
+  if(S.step===0)renderOpts();if(S.step===1)renderExtras();if(S.step===3)renderSum();
+  var T=totals();$("#totVal").textContent=S.room?omr(T.total):"—";$("#totLbl").textContent=S.room?"الإجمالي التقديري · "+T.n+" ليالٍ":"اختر وحدة لعرض السعر"}
+$$(".ctl button").forEach(function(b){b.addEventListener("click",function(){if(b.dataset.c==="adults")S.adults=Math.min(6,Math.max(1,S.adults+ +b.dataset.d));else S.kids=Math.min(4,Math.max(0,S.kids+ +b.dataset.d));refresh()})});
+function go(s){S.step=s;$$(".step").forEach(function(x){x.classList.toggle("on",+x.dataset.step===s)});$$("#stepsBar li").forEach(function(li,i){li.classList.toggle("on",i<=s)});
+  $("#bBack").style.visibility=(s===0||S.ref)?"hidden":"visible";$("#bNext").textContent=S.ref?"إنهاء":s===3?"تأكيد الحجز":"التالي";$("#dBody").scrollTop=0;refresh()}
+$("#bBack").addEventListener("click",function(){if(S.step>0)go(S.step-1)});
+$("#bNext").addEventListener("click",function(){
+  if(S.ref){closeB();return}
+  if(S.step===0&&!S.room){$("#err0").textContent="اختر وحدة متاحة للمتابعة.";return}
+  $("#err0").textContent="";
+  if(S.step===2){var nm=$("#gName").value.trim(),ph=$("#gPhone").value.replace(/\D/g,"");
+    if(nm.length<3){$("#err2").textContent="اكتب اسمك الكامل.";return}if(ph.length<8){$("#err2").textContent="أدخل رقم هاتف صحيحًا (8 أرقام على الأقل).";return}$("#err2").textContent=""}
+  if(S.step===3){S.ref="BKH-"+String(Date.now()%100000).padStart(5,"0");go(3);return}
+  go(S.step+1)});
+var ov=$("#overlay"),lastF=null;
+function openB(no){lastF=document.activeElement;if(S.ref){S.ref=null;S.extras={}}
+  if(no){var f=findRoom(no);if(f&&!taken(no)){S.room=no;var mx=TYPES[f.r.t].max;if(guests()>mx){S.adults=Math.min(S.adults,mx);S.kids=0}}}
+  ov.hidden=false;requestAnimationFrame(function(){ov.classList.add("open")});document.documentElement.style.overflow="hidden";go(0);setTimeout(function(){$("#dClose").focus()},50)}
+function closeB(){ov.classList.remove("open");document.documentElement.style.overflow="";setTimeout(function(){ov.hidden=true;if(lastF&&lastF.focus)lastF.focus()},400)}
+document.addEventListener("click",function(e){var b=e.target.closest("[data-book]");if(b){e.preventDefault();openB(b.getAttribute("data-book")||null)}});
+$("#dClose").addEventListener("click",closeB);ov.addEventListener("click",function(e){if(e.target===ov)closeB()});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!ov.hidden)closeB()});
+function copyText(t,btn){var ok=function(){var o=btn.textContent;btn.textContent="تم النسخ";setTimeout(function(){btn.textContent=o},1500)};
+  try{navigator.clipboard.writeText(t).then(ok,function(){})}catch(_){}}
+$$("[data-copy]").forEach(function(b){b.addEventListener("click",function(){copyText(b.dataset.copy,b)})});
+})();
+</script>
+
+</body>
+</html>
